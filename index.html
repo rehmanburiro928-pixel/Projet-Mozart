@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,14 +7,12 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
     <header class="topbar">
         <h1>PROJECT MOZART</h1>
-        <span class="version">EXPERIMENT 001</span>
+        <span class="version">EXPERIMENT 002</span>
     </header>
 
     <main class="workspace">
-
         <section class="intro">
             <p class="eyebrow">COMPUTER VISION / VIRTUAL INSTRUMENT</p>
             <h2>Music without boundaries.</h2>
@@ -23,53 +20,46 @@
         </section>
 
         <section class="camera-panel">
-
             <div class="panel-heading">
                 <h3>VISION STUDIO</h3>
                 <span id="camera-status">CAMERA OFFLINE</span>
             </div>
 
             <div class="camera-container">
-                <video id="camera" autoplay playsinline></video>
+                <video id="camera" autoplay playsinline muted></video>
                 <canvas id="hand-canvas"></canvas>
-
                 <div id="camera-placeholder">
                     <p>CAMERA FEED</p>
                     <span>Your visual workspace awaits.</span>
                 </div>
             </div>
 
-            <button id="camera-button">
-                Activate Camera
-            </button>
-
+            <button id="camera-button">Activate Camera</button>
+            <p id="vision-message" role="status" aria-live="polite">Camera is off. Activate it to begin hand tracking.</p>
         </section>
 
         <section class="status-panel">
             <h3>SYSTEM STATUS</h3>
-
             <div class="status-item">
                 <span>Camera</span>
                 <span id="camera-indicator">Offline</span>
             </div>
-
             <div class="status-item">
                 <span>Hand Tracking</span>
                 <span id="tracking-indicator">Not Started</span>
             </div>
-
+            <div class="status-item">
+                <span>Hands Detected</span>
+                <span id="hands-indicator">0</span>
+            </div>
             <div class="status-item">
                 <span>Virtual Piano</span>
-                <span>Under Development</span>
+                <span>Next Stage</span>
             </div>
         </section>
-
     </main>
 
-    <footer>
-        PROJECT MOZART · BUILT THROUGH VISION
-    </footer>
-
-    <script src="script.js"></script>
+    <footer>PROJECT MOZART · BUILT THROUGH VISION</footer>
+    <script type="module" src="script.js"></script>
 </body>
 </html>
