@@ -1,9 +1,9 @@
-import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+import { FilesetResolver, HandLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs";
 
 const video = document.getElementById("camera");
 const canvas = document.getElementById("hand-canvas");
 const ctx = canvas.getContext("2d");
-const cameraButton = document.getElementById("camera-button");
+const button = document.getElementById("camera-button");
 const cameraStatus = document.getElementById("camera-status");
 const cameraIndicator = document.getElementById("camera-indicator");
 const trackingIndicator = document.getElementById("tracking-indicator");
@@ -18,20 +18,17 @@ let lastVideoTime = -1;
 let busy = false;
 
 const connections = [
-  [0,1],[1,2],[2,3],[3,4],
-  [0,5],[5,6],[6,7],[7,8],
-  [5,9],[9,10],[10,11],[11,12],
-  [9,13],[13,14],[14,15],[15,16],
-  [13,17],[17,18],[18,19],[19,20],
-  [0,17]
+  [0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],
+  [5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],
+  [13,17],[17,18],[18,19],[19,20],[0,17]
 ];
 
 async function createHandTracker() {
-  message.textContent = "Loading hand-tracking model…";
+  message.textContent = "Loading hand-tracking model...";
+  trackingIndicator.textContent = "Loading model";
   const vision = await FilesetResolver.forVisionTasks(
     "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
   );
-
   return HandLandmarker.createFromOptions(vision, {
     baseOptions: {
       modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
@@ -45,22 +42,19 @@ async function createHandTracker() {
 function resizeCanvas() {
   const width = video.videoWidth || video.clientWidth;
   const height = video.videoHeight || video.clientHeight;
-  if (!width || !height) return;
-  if (canvas.width !== width || canvas.height !== height) {
+  if (width && height && (canvas.width !== width || canvas.height !== height)) {
     canvas.width = width;
     canvas.height = height;
   }
 }
 
-function drawHands(landmarksList) {
+function drawHands(allHands) {
   resizeCanvas();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  for (const landmarks of landmarksList) {
+  for (const landmarks of allHands) {
     ctx.lineWidth = Math.max(2, canvas.width / 320);
     ctx.strokeStyle = "#d6bd91";
     ctx.fillStyle = "#fff1d5";
-
     for (const [start, end] of connections) {
       const a = landmarks[start];
       const b = landmarks[end];
@@ -69,33 +63,17 @@ function drawHands(landmarksList) {
       ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
       ctx.stroke();
     }
-
     landmarks.forEach((point, index) => {
-      const radius = [4, 8, 12, 16, 20].includes(index) ? 6 : 3.5;
       ctx.beginPath();
-      ctx.arc(point.x * canvas.width, point.y * canvas.height, radius, 0, Math.PI * 2);
+      ctx.arc(point.x * canvas.width, point.y * canvas.height, [4,8,12,16,20].includes(index) ? 7 : 3.5, 0, Math.PI * 2);
       ctx.fill();
     });
-
-    // Highlight the five fingertips so they are easy to identify.
-    for (const tipIndex of [4, 8, 12, 16, 20]) {
-      const tip = landmarks[tipIndex];
-      ctx.beginPath();
-      ctx.arc(tip.x * canvas.width, tip.y * canvas.height, 9, 0, Math.PI * 2);
-      ctx.strokeStyle = "#e5a85f";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
   }
 }
 
 function trackFrame() {
-  if (!video.srcObject || video.readyState < 2 || !handLandmarker) {
-    animationId = requestAnimationFrame(trackFrame);
-    return;
-  }
-
-  if (video.currentTime !== lastVideoTime && !busy) {
+  if (!stream) return;
+  if (video.readyState >= 2 && video.currentTime !== lastVideoTime && !busy && handLandmarker) {
     lastVideoTime = video.currentTime;
     busy = true;
     try {
@@ -105,38 +83,35 @@ function trackFrame() {
       handsIndicator.textContent = String(hands.length);
       trackingIndicator.textContent = hands.length ? "Tracking" : "Searching";
       message.textContent = hands.length
-        ? `${hands.length} hand(s) detected · fingertip markers are highlighted`
-        : "Show one or both hands to the camera.";
+        ? `${hands.length} hand(s) detected. Fingertips are highlighted.`
+        : "Hand tracking is active. Hold your hand clearly in view.";
     } catch (error) {
-      console.error("Hand tracking error:", error);
-      message.textContent = "Tracking encountered an error. Check the browser console.";
+      console.error("Hand detection error:", error);
+      message.textContent = "Hand detection error: " + (error.message || error);
     } finally {
       busy = false;
     }
   }
-
   animationId = requestAnimationFrame(trackFrame);
 }
 
 async function startCamera() {
-  cameraButton.disabled = true;
+  button.disabled = true;
   try {
     if (!navigator.mediaDevices?.getUserMedia) {
-      throw new Error("Camera access requires an HTTPS website in a supported browser.");
+      throw new Error("Camera access requires a secure HTTPS page and a supported browser.");
     }
-
-    message.textContent = "Requesting camera permission…";
+    message.textContent = "Requesting camera permission...";
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: false
     });
-
     video.srcObject = stream;
     await video.play();
     placeholder.style.display = "none";
     cameraStatus.textContent = "CAMERA ONLINE";
     cameraIndicator.textContent = "Online";
-    cameraButton.textContent = "Turn Camera Off";
+    button.textContent = "Turn Camera Off";
 
     if (!handLandmarker) {
       handLandmarker = await createHandTracker();
@@ -145,24 +120,25 @@ async function startCamera() {
     trackingIndicator.textContent = "Searching";
     message.textContent = "Hand tracking is ready. Show your hand to the camera.";
     lastVideoTime = -1;
-    cancelAnimationFrame(animationId);
+    if (animationId) cancelAnimationFrame(animationId);
     trackFrame();
   } catch (error) {
-    console.error(error);
+    console.error("Camera or hand-tracking startup error:", error);
     message.textContent = error.message || "Could not start the camera or hand tracker.";
-    cameraStatus.textContent = "CAMERA ERROR";
+    cameraStatus.textContent = "STARTUP ERROR";
     trackingIndicator.textContent = "Unavailable";
     if (stream) stream.getTracks().forEach(track => track.stop());
     stream = null;
     video.srcObject = null;
-    cameraButton.textContent = "Try Again";
+    button.textContent = "Try Again";
   } finally {
-    cameraButton.disabled = false;
+    button.disabled = false;
   }
 }
 
 function stopCamera() {
-  cancelAnimationFrame(animationId);
+  if (animationId) cancelAnimationFrame(animationId);
+  animationId = null;
   if (stream) stream.getTracks().forEach(track => track.stop());
   stream = null;
   video.srcObject = null;
@@ -172,15 +148,14 @@ function stopCamera() {
   trackingIndicator.textContent = "Not Started";
   handsIndicator.textContent = "0";
   placeholder.style.display = "flex";
-  cameraButton.textContent = "Activate Camera";
+  button.textContent = "Activate Camera";
   message.textContent = "Camera is off. Activate it to begin hand tracking.";
 }
 
-cameraButton.addEventListener("click", () => {
+button.addEventListener("click", () => {
   if (stream) stopCamera();
   else startCamera();
 });
-
 window.addEventListener("resize", resizeCanvas);
 window.addEventListener("pagehide", () => {
   if (stream) stream.getTracks().forEach(track => track.stop());
